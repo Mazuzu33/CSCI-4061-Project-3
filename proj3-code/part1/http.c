@@ -110,5 +110,79 @@ int read_http_request(int fd, char *resource_name)
 int write_http_response(int fd, const char *resource_path)
 {
     // TODO Not yet implemented
+
+    char path[BUFSIZE];
+    int fp_len;
+    char header[512];
+    struct stat file_info;
+
+    if ((fp_len = snprintf(path, sizeof(header), "server_files%s", resource_path)) == -1 || fp_len >= BUFSIZE)
+    {
+        strcpy(header, "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        write(fd, header, strlen(header));
+        return -1;
+    }
+
+    if (stat(path, &file_info) == -1)
+    {
+        strcpy(header, "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        write(fd, header, strlen(header));
+        return -1;
+    }
+
+    char *type = get_mime_type(path);
+
+    if ((fp_len = snprintf(header, sizeof(header), "HTTP/1.0 200 OK\r\nContent-Type: %s\r\nContent-Length: %jd\r\n\r\n", type, (__intmax_t)(file_info.st_size))) == -1 || fp_len >= BUFSIZE)
+    {
+        return -1;
+    }
+
+    size_t total_written = 0;
+
+    while (total_written < strlen(header))
+    {
+        int temp = write(fd, header + total_written, strlen(header) - total_written);
+        if (temp == -1)
+        {
+            return -1;
+        }
+        else
+        {
+            total_written += temp;
+        }
+    }
+
+    int fd_r = open(path, O_RDONLY);
+    if (fd_r == -1)
+    {
+        return -1;
+    }
+
+    char file[4096];
+    int bytes_read = 0;
+
+    while ((bytes_read = read(fd_r, file, 4096)) > 0)
+    {
+        int temp = 0;
+        int wr;
+        while ((wr = write(fd, file + temp, bytes_read)) > 0)
+        {
+            temp += wr;
+            bytes_read -= wr;
+        }
+
+        if (wr == -1)
+        {
+            return -1;
+        }
+    }
+
+    if (bytes_read == -1)
+    {
+        return -1;
+    }
+
+    close(fd_r);
+
     return 0;
 }
