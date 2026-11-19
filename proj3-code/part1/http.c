@@ -127,7 +127,8 @@ int write_http_response(int fd, const char *resource_path)
         return -1;
     }
 
-    const char *type = get_mime_type(path);
+    char *extension = strrchr(path, '.');
+    const char *type = get_mime_type(extension);
 
     if ((fp_len = snprintf(header, sizeof(header), "HTTP/1.0 200 OK\r\nContent-Type: %s\r\nContent-Length: %jd\r\n\r\n", type, (__intmax_t)(file_info.st_size))) == -1 || fp_len >= sizeof(header))
     {
