@@ -116,7 +116,7 @@ int write_http_response(int fd, const char *resource_path)
     char header[512];
     struct stat file_info;
 
-    if ((fp_len = snprintf(path, sizeof(header), "server_files%s", resource_path)) == -1 || fp_len >= BUFSIZE)
+    if ((fp_len = snprintf(path, sizeof(header), "%s", resource_path)) == -1 || fp_len >= BUFSIZE)
     {
         strcpy(header, "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
         write(fd, header, strlen(header));
@@ -130,7 +130,7 @@ int write_http_response(int fd, const char *resource_path)
         return -1;
     }
 
-    char *type = get_mime_type(path);
+    const char *type = get_mime_type(path);
 
     if ((fp_len = snprintf(header, sizeof(header), "HTTP/1.0 200 OK\r\nContent-Type: %s\r\nContent-Length: %jd\r\n\r\n", type, (__intmax_t)(file_info.st_size))) == -1 || fp_len >= BUFSIZE)
     {

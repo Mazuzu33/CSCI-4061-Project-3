@@ -97,7 +97,7 @@ int main(int argc, char **argv)
     while (keep_going != 0)
     {
         // Wait to receive a connection request from client
-        printf("Waiting for client to connect\n");
+        // printf("Waiting for client to connect\n"); Delete later
         int client_fd = accept(sock_fd, NULL, NULL);
         if (client_fd == -1)
         {
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
                 break;
             }
         }
-        printf("New client connected\n");
+        // printf("New client connected\n"); Delete later
 
         // Read http request from a client
         char resource_name[PATHSIZE];
@@ -123,20 +123,20 @@ int main(int argc, char **argv)
         // If an error happens, close the client connection but keep reading requests from other clients
         if (read_http_request(client_fd, resource_name) == -1)
         {
-            printf("Error reading http request, client disconnected\n");
+            // printf("Error reading http request, client disconnected\n"); Delete later
             continue;
         }
-        printf("Received http request for: %s\n", resource_name);
+        // printf("Received http request for: %s\n", resource_name); Delete later
         // Convert the requested resource name to a proper file path
         strncat(resource_path, resource_name, PATHSIZE - strlen(resource_path) - 1);
         // If an error happens, close the client connection but keep reading requests from other clients
         if (write_http_response(client_fd, resource_path) == -1)
         {
-            printf("Error writing http response, client disconnected\n");
+            // printf("Error writing http response, client disconnected\n"); Delete later
             continue;
         }
-
-        // Close client connection
+        // printf("Wrote http response for: %s\n", resource_path); Delete later
+        //  Close client connection
 
         if (close(client_fd) == -1)
         {
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        printf("Client disconnected\n");
+        // printf("Client disconnected\n"); Delete later
     }
 
     // Close connection socket
