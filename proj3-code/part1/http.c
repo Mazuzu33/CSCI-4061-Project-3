@@ -56,7 +56,6 @@ int read_http_request(int fd, char *resource_name)
     {
         if (total_bytes == BUFSIZE - 1)
         {
-            close(fd);
             return -1;
         }
 
@@ -65,7 +64,6 @@ int read_http_request(int fd, char *resource_name)
         // closes if it reads to the end but cannot find ending sequence
         if (bytes == 0)
         {
-            close(fd);
             return -1;
         }
         else if (bytes == -1) // closes if read returns an error
@@ -76,7 +74,6 @@ int read_http_request(int fd, char *resource_name)
             }
             else
             {
-                close(fd);
                 return -1;
             }
         }
@@ -116,7 +113,7 @@ int write_http_response(int fd, const char *resource_path)
     char header[512];
     struct stat file_info;
 
-    if ((fp_len = snprintf(path, sizeof(header), "%s", resource_path)) == -1 || fp_len >= BUFSIZE)
+    if ((fp_len = snprintf(path, sizeof(path), "%s", resource_path)) == -1 || fp_len >= BUFSIZE)
     {
         strcpy(header, "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
         write(fd, header, strlen(header));
@@ -132,7 +129,7 @@ int write_http_response(int fd, const char *resource_path)
 
     const char *type = get_mime_type(path);
 
-    if ((fp_len = snprintf(header, sizeof(header), "HTTP/1.0 200 OK\r\nContent-Type: %s\r\nContent-Length: %jd\r\n\r\n", type, (__intmax_t)(file_info.st_size))) == -1 || fp_len >= BUFSIZE)
+    if ((fp_len = snprintf(header, sizeof(header), "HTTP/1.0 200 OK\r\nContent-Type: %s\r\nContent-Length: %jd\r\n\r\n", type, (__intmax_t)(file_info.st_size))) == -1 || fp_len >= sizeof(header))
     {
         return -1;
     }

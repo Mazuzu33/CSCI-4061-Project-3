@@ -124,6 +124,7 @@ int main(int argc, char **argv)
         if (read_http_request(client_fd, resource_name) == -1)
         {
             // printf("Error reading http request, client disconnected\n"); Delete later
+            close(client_fd);
             continue;
         }
         // printf("Received http request for: %s\n", resource_name); Delete later
@@ -133,6 +134,7 @@ int main(int argc, char **argv)
         if (write_http_response(client_fd, resource_path) == -1)
         {
             // printf("Error writing http response, client disconnected\n"); Delete later
+            close(client_fd);
             continue;
         }
         // printf("Wrote http response for: %s\n", resource_path); Delete later
