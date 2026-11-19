@@ -25,6 +25,10 @@ void handle_sigint(int signo)
     keep_going = 0;
 }
 
+// args in argv:
+// 1. itself
+// 2. directory
+// 3. port
 int main(int argc, char **argv)
 {
     // First argument is directory to serve, second is port

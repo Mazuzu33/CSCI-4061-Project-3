@@ -5,6 +5,13 @@
 
 int connection_queue_init(connection_queue_t *queue) {
     // TODO Not yet implemented
+
+    queue->length = 0;
+    queue->read_idx = 0;
+    queue->write_idx = 0;
+    pthread_mutex_init();
+    
+
     return 0;
 }
 
