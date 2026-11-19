@@ -68,14 +68,7 @@ int read_http_request(int fd, char *resource_name)
         }
         else if (bytes == -1) // closes if read returns an error
         {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else
-            {
-                return -1;
-            }
+            return -1;
         }
         else // read successfully reads ig
         {
