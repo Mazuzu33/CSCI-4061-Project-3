@@ -173,12 +173,14 @@ int write_http_response(int fd, const char *resource_path)
 
         if (wr == -1)
         {
+            close(fd_r);
             return -1;
         }
     }
 
     if (bytes_read == -1)
     {
+        close(fd_r);
         return -1;
     }
 
