@@ -15,7 +15,7 @@
 #include "http.h"
 
 #define N_THREADS 5
-#define BUFSIZE 512
+#define PATHSIZE 512
 
 int keep_going = 1;
 const char *serve_dir;
@@ -117,9 +117,9 @@ int main(int argc, char **argv)
         printf("New client connected\n");
 
         // Read http request from a client
-        char resource_name[BUFSIZE];
-        char resource_path[BUFSIZE];
-        strncpy(resource_path, serve_dir, strlen(serve_dir) + 1);
+        char resource_name[PATHSIZE];
+        char resource_path[PATHSIZE];
+        strncpy(resource_path, serve_dir, PATHSIZE);
         // If an error happens, close the client connection but keep reading requests from other clients
         if (read_http_request(client_fd, resource_name) == -1)
         {
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
         }
         printf("Received http request for: %s\n", resource_name);
         // Convert the requested resource name to a proper file path
-        strncat(resource_path, resource_name, BUFSIZE - 1);
+        strncat(resource_path, resource_name, PATHSIZE - strlen(resource_path) - 1);
         // If an error happens, close the client connection but keep reading requests from other clients
         if (write_http_response(client_fd, resource_path) == -1)
         {
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
         if (close(client_fd) == -1)
         {
             perror("close");
-            close(sockfd);
+            close(sock_fd);
             return 1;
         }
 
