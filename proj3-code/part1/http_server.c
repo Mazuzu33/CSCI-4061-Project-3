@@ -25,11 +25,11 @@ void *worker(void *arg)
 {
     while (1)
     {
-        // printf("New client connected\n"); Delete later
         // Set up strings to hold file name and path
         char resource_name[PATHSIZE];
         char resource_path[PATHSIZE];
-        strncpy(resource_path, serve_dir, PATHSIZE);
+        strncpy(resource_path, serve_dir, PATHSIZE - 1);
+        resource_path[PATHSIZE - 1] = '\0';
         // Dequeue client fd
         int client_fd;
         if ((client_fd = connection_queue_dequeue(arg)) == -1)
@@ -39,22 +39,18 @@ void *worker(void *arg)
         // If an error happens, close the client connection but keep reading requests from other clients
         if (read_http_request(client_fd, resource_name) == -1)
         {
-            // printf("Error reading http request, client disconnected\n"); Delete later
             close(client_fd);
             continue;
         }
-        // printf("Received http request for: %s\n", resource_name); Delete later
-        // Convert the requested resource name to a proper file path
+        //  Convert the requested resource name to a proper file path
         strncat(resource_path, resource_name, PATHSIZE - strlen(resource_path) - 1);
         // If an error happens, close the client connection but keep reading requests from other clients
         if (write_http_response(client_fd, resource_path) == -1)
         {
-            // printf("Error writing http response, client disconnected\n"); Delete later
             close(client_fd);
             continue;
         }
-        // printf("Client disconnected\n"); Delete later
-        // Try to close client fd
+        //  Try to close client fd
         if (close(client_fd) == -1)
         {
             perror("close");
@@ -100,6 +96,7 @@ int main(int argc, char **argv)
     if (sigaction(SIGINT, &sigact, NULL) == -1)
     {
         perror("sigaction");
+        connection_queue_free(&queue);
         return 1;
     }
     // Block all possible signals
@@ -112,13 +109,15 @@ int main(int argc, char **argv)
     int status;
     for (int i = 0; i < N_THREADS; i++)
     {
-        if ((status = pthread_create(tids[i], NULL, worker, &queue)) != 0)
+        if ((status = pthread_create(&tids[i], NULL, worker, &queue)) != 0)
         {
             fprintf(stderr, "Failed to create thread: %s\n", strerror(status));
+            connection_queue_shutdown(&queue);
             for (int j = 0; j < i; j++)
             {
                 pthread_join(tids[j], NULL);
             }
+            connection_queue_free(&queue);
             return 1;
         }
     }
@@ -137,10 +136,12 @@ int main(int argc, char **argv)
     if (ret_val != 0)
     {
         fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(ret_val));
+        connection_queue_shutdown(&queue);
         for (int i = 0; i < N_THREADS; i++)
         {
             pthread_join(tids[i], NULL);
         }
+        connection_queue_free(&queue);
         return 1;
     }
 
@@ -150,10 +151,12 @@ int main(int argc, char **argv)
     {
         perror("socket");
         freeaddrinfo(server);
+        connection_queue_shutdown(&queue);
         for (int i = 0; i < N_THREADS; i++)
         {
             pthread_join(tids[i], NULL);
         }
+        connection_queue_free(&queue);
         return 1;
     }
 
@@ -163,10 +166,12 @@ int main(int argc, char **argv)
         perror("bind");
         freeaddrinfo(server);
         close(sock_fd);
+        connection_queue_shutdown(&queue);
         for (int i = 0; i < N_THREADS; i++)
         {
             pthread_join(tids[i], NULL);
         }
+        connection_queue_free(&queue);
         return 1;
     }
 
@@ -177,10 +182,12 @@ int main(int argc, char **argv)
     {
         perror("listen");
         close(sock_fd);
+        connection_queue_shutdown(&queue);
         for (int i = 0; i < N_THREADS; i++)
         {
             pthread_join(tids[i], NULL);
         }
+        connection_queue_free(&queue);
         return 1;
     }
 
@@ -190,6 +197,7 @@ int main(int argc, char **argv)
         // Wait to receive a connection request from client
         // printf("Waiting for client to connect\n"); Delete later
         int client_fd = accept(sock_fd, NULL, NULL);
+        // printf("New client connected\n");
         if (client_fd == -1)
         {
             // If a error happened
@@ -197,10 +205,12 @@ int main(int argc, char **argv)
             {
                 perror("accept");
                 close(sock_fd);
+                connection_queue_shutdown(&queue);
                 for (int i = 0; i < N_THREADS; i++)
                 {
                     pthread_join(tids[i], NULL);
                 }
+                connection_queue_free(&queue);
                 return 1;
             }
             // If a SIGINT was recieved, break out of loop to clean up
@@ -212,6 +222,7 @@ int main(int argc, char **argv)
         // Add client fd to queue
         if (connection_queue_enqueue(&queue, client_fd) == -1)
         {
+            close(client_fd);
             break;
         }
     }
@@ -219,23 +230,37 @@ int main(int argc, char **argv)
     // Shutdown queue
     if (connection_queue_shutdown(&queue) == -1)
     {
-        fprintf(stderr, "Failed to shutdown queue\n", NULL);
+        fprintf(stderr, "Failed to shutdown queue\n");
         close(sock_fd);
         for (int i = 0; i < N_THREADS; i++)
         {
             pthread_join(tids[i], NULL);
         }
+        connection_queue_free(&queue);
         return 1;
     }
 
+    // Join threads
+    for (int i = 0; i < N_THREADS; i++)
+    {
+        if ((status = pthread_join(tids[i], NULL)) != 0)
+        {
+            fprintf(stderr, "Failed to join thread: %s\n", strerror(status));
+            close(sock_fd);
+            for (int j = i + 1; j < N_THREADS; j++)
+            {
+                pthread_join(tids[j], NULL);
+            }
+            connection_queue_free(&queue);
+            return 1;
+        }
+    }
+
+    // Free queue, all threads have been joined at this point
     if (connection_queue_free(&queue) == -1)
     {
-        fprintf(stderr, "Failed to cleanup queue\n", NULL);
+        fprintf(stderr, "Failed to cleanup queue\n");
         close(sock_fd);
-        for (int i = 0; i < N_THREADS; i++)
-        {
-            pthread_join(tids[i], NULL);
-        }
         return 1;
     }
 
@@ -244,20 +269,6 @@ int main(int argc, char **argv)
     {
         perror("close");
         return 1;
-    }
-
-    // Join threads
-    for (int i = 0; i < N_THREADS; i++)
-    {
-        if ((status = pthread_join(tids[0], NULL)) != 0)
-        {
-            fprintf(stderr, "Failed to join thread: %s\n", strerror(status));
-            for (int j = i + 1; j < N_THREADS; j++)
-            {
-                pthread_join(tids[j], NULL);
-            }
-            return 1;
-        }
     }
     return 0;
 }
