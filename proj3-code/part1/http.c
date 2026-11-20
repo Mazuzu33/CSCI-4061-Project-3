@@ -40,7 +40,6 @@ const char *get_mime_type(const char *file_extension)
     return NULL;
 }
 
-// dont forget to close fd if there is an error
 int read_http_request(int fd, char *resource_name)
 {
     // TODO Not yet implemented
@@ -100,20 +99,12 @@ int read_http_request(int fd, char *resource_name)
 int write_http_response(int fd, const char *resource_path)
 {
     // TODO Not yet implemented
-
-    char path[BUFSIZE];
     int fp_len;
     char header[512];
     struct stat file_info;
 
-    if ((fp_len = snprintf(path, sizeof(path), "%s", resource_path)) == -1 || fp_len >= BUFSIZE)
-    {
-        strcpy(header, "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-        write(fd, header, strlen(header));
-        return -1;
-    }
-
-    if (stat(path, &file_info) == -1)
+    // Check for a valid file path
+    if (stat(resource_path, &file_info) == -1)
     {
         strcpy(header, "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
         write(fd, header, strlen(header));
@@ -121,7 +112,7 @@ int write_http_response(int fd, const char *resource_path)
     }
 
     // Try to get extension type, use text/plain as a default
-    char *extension = strrchr(path, '.');
+    char *extension = strrchr(resource_path, '.');
     const char *type;
     if (extension != NULL)
     {
@@ -132,6 +123,7 @@ int write_http_response(int fd, const char *resource_path)
         type = "text/plain";
     }
 
+    // Make HTTP response header
     if ((fp_len = snprintf(header, sizeof(header), "HTTP/1.0 200 OK\r\nContent-Type: %s\r\nContent-Length: %jd\r\n\r\n", type, (__intmax_t)(file_info.st_size))) == -1 || fp_len >= sizeof(header))
     {
         return -1;
@@ -139,6 +131,7 @@ int write_http_response(int fd, const char *resource_path)
 
     size_t total_written = 0;
 
+    // Write HTTP response header to socket
     while (total_written < strlen(header))
     {
         int temp = write(fd, header + total_written, strlen(header) - total_written);
@@ -152,7 +145,8 @@ int write_http_response(int fd, const char *resource_path)
         }
     }
 
-    int fd_r = open(path, O_RDONLY);
+    // Open file
+    int fd_r = open(resource_path, O_RDONLY);
     if (fd_r == -1)
     {
         return -1;
@@ -161,6 +155,7 @@ int write_http_response(int fd, const char *resource_path)
     char file[4096];
     int bytes_read = 0;
 
+    // Read in file bytes and write file bytes to socket
     while ((bytes_read = read(fd_r, file, 4096)) > 0)
     {
         int temp = 0;

@@ -10,18 +10,18 @@ QUEUE_SIZE = 5
 N_WORKERS = 5
 keep_going = True
 
+
 def worker(queue, serve_dir):
-    while (True):
+    while True:
         # Dequeue client and read HTTP request and write HTTP response
         try:
             client = queue.dequeue()
         except ShutDownException:
             break
         with client:
-            resource_name = read_request(client)
+            resource_name = http_handler.read_request(client)
             resource_path = serve_dir + resource_name
-            write_response(client, resource_path)
-
+            http_handler.write_response(client, resource_path)
 
 
 def handle_sigint(_signo, _frame):
@@ -42,17 +42,18 @@ def main():
 
     # TODO Complete the implementation of the rest of this function
     # Create a new connection queue
-    queue = ConnectionQueue(N_WORKERS)
+    queue = ConnectionQueue(QUEUE_SIZE)
     # Set up signal handler
     signal.signal(signal.SIGINT, handle_sigint)
     # Set up thread pool
     threads = []
-    for i in range(NUM_THREADS):
+    for i in range(N_WORKERS):
         t = threading.Thread(target=worker, args=(queue, serve_dir))
         t.start()
         threads.append(t)
     # Create a TCP socket, binds it, and puts it into listening mode
-    with server = socket.create_server(("", port)):
+    server = socket.create_server(("", port))
+    with server:
         # Wait 1.0 seconds for a new client to connect
         server.settimeout(1.0)
         while keep_going:
@@ -60,9 +61,11 @@ def main():
                 conn, _ = server.accept()
             except TimeoutError:
                 continue
+            # Enqueue the new client connection
             try:
                 queue.enqueue(conn)
             except ShutDownException:
+                conn.close()
                 break
     # Shutdown queue
     queue.shut_down()
