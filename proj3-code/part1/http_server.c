@@ -224,6 +224,17 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (connection_queue_free(&queue) == -1)
+    {
+        fprintf(stderr, "Failed to cleanup queue\n", NULL);
+        close(sock_fd);
+        for (int i = 0; i < N_THREADS; i++)
+        {
+            pthread_join(tids[i], NULL);
+        }
+        return 1;
+    }
+
     // Close connection socket
     if (close(sock_fd) == -1)
     {
