@@ -15,6 +15,9 @@ class ConnectionQueue:
         self.elements = collections.deque()
         self.shutdown = False
         self.capacity = capacity
+        self.lock = threading.Lock()
+        self.cv_full = threading.Condition(lock=self.lock)
+        self.cv_empty = threading.Condition(lock=self.lock)
         # TODO Add the necessary thread synchronization primitives
 
     # Add a new socket to the queue
@@ -26,7 +29,17 @@ class ConnectionQueue:
     # Raises ShutDownException if the queue was shut down while the calling thread
     # was in the middle of this operation.
     def enqueue(self, conn: socket.socket) -> None:
-        raise NotImplementedError("TODO: ConnectionQueue enqueue")
+        with self.lock:
+            # While the queue is full and we are not shutting down, wait for the queue to not be full
+            while len(self.elements) == self.capacity and self.shutdown == False:
+                self.cv_full.wait()
+            # If we are shutting down
+            if self.shutdown:
+                raise ShutDownException
+            # Proceed with the enqueue operation
+            self.elements.append(conn)
+            # Notify that the queue is not empty anymore
+            self.cv_empty.notify()
 
     # Remove a socket from the queue
     # This should block the calling thread if the queue is empty. The thread
@@ -37,10 +50,25 @@ class ConnectionQueue:
     # Raises ShutDownException if the queue was shut down while the calling thread
     # was in the middle of this operation.
     def dequeue(self) -> socket.socket:
-        raise NotImplementedError("TODO: ConnectionQueue dequeue")
+        with self.lock:
+            # While the queue is empty and we are not shutting down, wait for the queue to not be empty
+            while len(self.elements) == 0 and self.shutdown == False:
+                self.cv_empty.wait()
+            # If we are shutting down and the queue is empty
+            if self.shutdown == True and len(self.elements) == 0:
+                raise ShutDownException
+            # Proceed with the dequeue operation
+            sock = self.elements.popleft()
+            # Notifay that the queue is not full anymore
+            self.cv_full.notify()
+            return sock
 
     # Shut down the queue
     # All threads blocking on either an enqueue or dequeue are unblocked and
     # will observe a ShutDownException.
     def shut_down(self) -> None:
-        raise NotImplementedError("TODO: ConnectionQueue shut_down")
+        with self.lock:
+            # Indicate we are shutting down and signal all condition variables
+            self.shutdown = True
+            self.cv_empty.notify_all()
+            self.cv_full.notify_all()

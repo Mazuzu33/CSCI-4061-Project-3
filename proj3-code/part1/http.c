@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define BUFSIZE 512
+#define BUFSIZE 4096
 
 const char *get_mime_type(const char *file_extension)
 {

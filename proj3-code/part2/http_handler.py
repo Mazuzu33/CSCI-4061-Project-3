@@ -4,7 +4,7 @@ from pathlib import Path
 MIME_TYPES = {
     ".txt": "text/plain",
     ".html": "text/html",
-    ".jpg": "text/jpeg",
+    ".jpg": "image/jpeg",
     ".png": "image/png",
     ".pdf": "application/pdf",
     ".mp3": "audio/mpeg",

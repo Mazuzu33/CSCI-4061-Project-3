@@ -54,7 +54,6 @@ void *worker(void *arg)
         if (close(client_fd) == -1)
         {
             perror("close");
-            return NULL;
         }
     }
     return NULL;
